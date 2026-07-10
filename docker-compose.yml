@@ -1,13 +1,36 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: collab
+      POSTGRES_PASSWORD: collab
+      POSTGRES_DB: collabboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U collab -d collabboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   server:
     build: ./server
     ports:
       - "4000:4000"
     env_file:
       - ./server/.env
+    environment:
+      DATABASE_URL: postgresql://collab:collab@postgres:5432/collabboard
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./server/src:/app/src
+      - ./server/prisma:/app/prisma
       - /app/node_modules
+      - /app/generated
 
   client:
     build: ./client
@@ -21,3 +44,6 @@ services:
       - /app/node_modules
     depends_on:
       - server
+
+volumes:
+  pgdata:
