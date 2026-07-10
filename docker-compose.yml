@@ -1,0 +1,23 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./server/.env
+    volumes:
+      - ./server/src:/app/src
+      - /app/node_modules
+
+  client:
+    build: ./client
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./client/.env
+    volumes:
+      - ./client/src:/app/src
+      - ./client/index.html:/app/index.html
+      - /app/node_modules
+    depends_on:
+      - server
