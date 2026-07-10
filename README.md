@@ -89,12 +89,3 @@ cp .env.example .env
 npm install
 npm run dev
 ```
-
-## Roadmap
-
-- [ ] Persist boards to PostgreSQL
-- [ ] Redis adapter for Socket.io (multi-instance scaling + shared presence)
-- [ ] Real user accounts (currently any name logs in)
-- [ ] CI/CD pipeline (GitHub Actions)
-- [ ] Deploy (Render/AWS/Fly.io)
-- [ ] Monitoring/logging (Grafana/Prometheus or CloudWatch)
