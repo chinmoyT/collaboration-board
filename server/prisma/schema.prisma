@@ -8,10 +8,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Board {
-  id        String   @id
+model User {
+  id        String   @id @default(uuid())
+  name      String   @unique
   createdAt DateTime @default(now())
-  columns   Column[]
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  boards Board[]
+}
+
+model Board {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  columns Column[]
+
+  @@index([organizationId])
 }
 
 model Column {

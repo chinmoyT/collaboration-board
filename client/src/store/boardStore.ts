@@ -4,8 +4,10 @@ import type { Board, Card, PresenceUser } from "../types";
 interface BoardState {
   board: Board | null;
   presence: PresenceUser[];
+  error: string | null;
   setBoard: (board: Board) => void;
   setPresence: (presence: PresenceUser[]) => void;
+  setError: (error: string | null) => void;
   addCard: (columnId: string, card: Card) => void;
   moveCard: (
     cardId: string,
@@ -20,9 +22,11 @@ interface BoardState {
 export const useBoardStore = create<BoardState>((set) => ({
   board: null,
   presence: [],
+  error: null,
 
   setBoard: (board) => set({ board }),
   setPresence: (presence) => set({ presence }),
+  setError: (error) => set({ error }),
 
   addCard: (columnId, card) =>
     set((state) => {
@@ -73,5 +77,5 @@ export const useBoardStore = create<BoardState>((set) => ({
       return { board: { ...state.board, columns, cards } };
     }),
 
-  reset: () => set({ board: null, presence: [] }),
+  reset: () => set({ board: null, presence: [], error: null }),
 }));

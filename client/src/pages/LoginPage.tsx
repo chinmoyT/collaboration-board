@@ -18,7 +18,7 @@ export function LoginPage() {
     try {
       const { token, user } = await login(name.trim());
       setAuth(token, user);
-      navigate("/boards");
+      navigate("/organizations");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

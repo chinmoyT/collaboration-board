@@ -6,7 +6,7 @@ import type { Board, Card, PresenceUser } from "../types";
 
 export function useBoardSocket(boardId: string) {
   const token = useAuthStore((s) => s.token);
-  const { setBoard, setPresence, addCard, moveCard, removeCard, reset } =
+  const { setBoard, setPresence, setError, addCard, moveCard, removeCard, reset } =
     useBoardStore();
 
   useEffect(() => {
@@ -17,9 +17,13 @@ export function useBoardSocket(boardId: string) {
     socket.emit(
       "board:join",
       boardId,
-      (res: { board: Board; presence: PresenceUser[] }) => {
-        setBoard(res.board);
-        setPresence(res.presence);
+      (res: { board?: Board; presence?: PresenceUser[]; error?: string }) => {
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setBoard(res.board!);
+        setPresence(res.presence!);
       }
     );
 
