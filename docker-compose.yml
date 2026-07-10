@@ -29,8 +29,6 @@ services:
     volumes:
       - ./server/src:/app/src
       - ./server/prisma:/app/prisma
-      - /app/node_modules
-      - /app/generated
 
   client:
     build: ./client
@@ -41,7 +39,6 @@ services:
     volumes:
       - ./client/src:/app/src
       - ./client/index.html:/app/index.html
-      - /app/node_modules
     depends_on:
       - server
 

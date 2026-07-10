@@ -8,10 +8,15 @@ function boardRoom(boardId) {
 function registerBoardHandlers(io, socket) {
   socket.on("board:join", async (boardId, ack) => {
     try {
+      const board = await boardStore.getBoard(boardId);
+      if (!board) {
+        if (typeof ack === "function") ack({ error: "Board not found" });
+        return;
+      }
+
       socket.join(boardRoom(boardId));
       socket.data.boardId = boardId;
 
-      const board = await boardStore.getBoard(boardId);
       const presence = presenceStore.join(boardId, socket.id, {
         id: socket.user.id,
         name: socket.user.name,

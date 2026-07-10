@@ -5,6 +5,7 @@ const cors = require("cors");
 
 const authRoutes = require("./routes/auth");
 const boardRoutes = require("./routes/boards");
+const organizationRoutes = require("./routes/organizations");
 const { initSocket } = require("./socket");
 
 const app = express();
@@ -16,6 +17,13 @@ app.use(express.json());
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/boards", boardRoutes);
+app.use("/api/organizations", organizationRoutes);
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: "Internal server error" });
+});
 
 initSocket(httpServer);
 

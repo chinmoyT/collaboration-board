@@ -17,6 +17,7 @@ export interface Column {
 
 export interface Board {
   id: string;
+  name: string;
   columns: Column[];
   cards: Record<string, Card>;
 }
@@ -24,4 +25,17 @@ export interface Board {
 export interface PresenceUser {
   id: string;
   name: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface BoardSummary {
+  id: string;
+  name: string;
+  organizationId: string;
+  createdAt: string;
 }

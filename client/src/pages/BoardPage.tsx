@@ -14,11 +14,12 @@ function findColumn(columns: Column[], cardOrColumnId: string): Column | undefin
 }
 
 export function BoardPage() {
-  const { boardId } = useParams<{ boardId: string }>();
+  const { orgId, boardId } = useParams<{ orgId: string; boardId: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const board = useBoardStore((s) => s.board);
   const presence = useBoardStore((s) => s.presence);
+  const error = useBoardStore((s) => s.error);
   const { createCard, moveCard, deleteCard } = useBoardSocket(boardId!);
 
   const sensors = useSensors(
@@ -43,6 +44,20 @@ export function BoardPage() {
     moveCard(activeId, fromColumn.id, toColumn.id, toIndex);
   };
 
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-slate-500">
+        <p>{error}</p>
+        <button
+          onClick={() => navigate(`/organizations/${orgId}`)}
+          className="text-slate-400 underline hover:text-slate-700"
+        >
+          Back to boards
+        </button>
+      </div>
+    );
+  }
+
   if (!board) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-slate-400">
@@ -56,13 +71,13 @@ export function BoardPage() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/boards")}
+            onClick={() => navigate(`/organizations/${orgId}`)}
             className="text-slate-400 hover:text-slate-700"
             aria-label="Back to boards"
           >
             ←
           </button>
-          <h1 className="text-lg font-semibold text-slate-800">{boardId}</h1>
+          <h1 className="text-lg font-semibold text-slate-800">{board.name}</h1>
         </div>
         <div className="flex items-center gap-4">
           <PresenceBar users={presence} />
