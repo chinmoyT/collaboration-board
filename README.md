@@ -16,6 +16,7 @@ A real-time collaborative Kanban board — drag-and-drop cards across columns an
 - Node.js + Express
 - Socket.io
 - JWT auth
+- PostgreSQL + Prisma ORM
 
 **Infra**
 - Docker + Docker Compose
@@ -31,12 +32,9 @@ Card moves are applied **optimistically** on the client (instant feedback) befor
 
 ### Data storage
 
-Boards currently live in an **in-memory `Map`** on the server ([server/src/store/boardStore.js](server/src/store/boardStore.js)) — there is no database yet. This means:
-- Data is lost on server restart.
-- A board is auto-created the first time its ID is requested.
-- Running multiple server instances would give each its own disconnected set of boards.
+Boards, columns, and cards are persisted in **PostgreSQL** via **Prisma** ([server/src/store/boardStore.js](server/src/store/boardStore.js), schema in [server/prisma/schema.prisma](server/prisma/schema.prisma)). A board is auto-created the first time its ID is requested. Card ordering within a column is tracked with a `position` column rather than array order, which is re-numbered on every move inside a transaction.
 
-Swapping in Postgres/Redis is the natural next step (see Roadmap).
+Presence (who's currently viewing a board) stays in an in-memory map ([server/src/store/presenceStore.js](server/src/store/presenceStore.js)) — it's ephemeral by nature, tied to live socket connections, so it doesn't need to be persisted.
 
 ## Project structure
 
@@ -44,12 +42,14 @@ Swapping in Postgres/Redis is the natural next step (see Roadmap).
 node-js/
 ├── docker-compose.yml
 ├── server/
+│   ├── prisma/schema.prisma    # Board, Column, Card models
 │   └── src/
 │       ├── index.js            # Express + HTTP server + Socket.io bootstrap
+│       ├── prismaClient.js     # Prisma client singleton
 │       ├── middleware/auth.js  # JWT sign/verify, REST + socket auth
 │       ├── routes/             # /api/auth, /api/boards
 │       ├── socket/             # room join/leave, card events
-│       └── store/               # in-memory board + presence state
+│       └── store/               # boardStore (Postgres) + presenceStore (in-memory)
 └── client/
     └── src/
         ├── services/           # REST client (api.ts), socket client (socket.ts)
@@ -74,11 +74,14 @@ Both services bind-mount their `src/` folders, so code changes hot-reload withou
 
 ### Without Docker
 
+Postgres still needs to be running somewhere reachable — easiest is `docker compose up -d postgres`, or point `DATABASE_URL` in `server/.env` at your own instance.
+
 **Server**
 ```bash
 cd server
 cp .env.example .env
-npm install
+npm install          # also generates the Prisma client (postinstall)
+npx prisma migrate dev
 npm run dev
 ```
 

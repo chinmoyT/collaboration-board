@@ -6,18 +6,22 @@ function boardRoom(boardId) {
 }
 
 function registerBoardHandlers(io, socket) {
-  socket.on("board:join", (boardId, ack) => {
-    socket.join(boardRoom(boardId));
-    socket.data.boardId = boardId;
+  socket.on("board:join", async (boardId, ack) => {
+    try {
+      socket.join(boardRoom(boardId));
+      socket.data.boardId = boardId;
 
-    const board = boardStore.getBoard(boardId);
-    const presence = presenceStore.join(boardId, socket.id, {
-      id: socket.user.id,
-      name: socket.user.name,
-    });
+      const board = await boardStore.getBoard(boardId);
+      const presence = presenceStore.join(boardId, socket.id, {
+        id: socket.user.id,
+        name: socket.user.name,
+      });
 
-    socket.to(boardRoom(boardId)).emit("presence:update", presence);
-    if (typeof ack === "function") ack({ board, presence });
+      socket.to(boardRoom(boardId)).emit("presence:update", presence);
+      if (typeof ack === "function") ack({ board, presence });
+    } catch (err) {
+      if (typeof ack === "function") ack({ error: err.message });
+    }
   });
 
   socket.on("board:leave", (boardId) => {
@@ -26,9 +30,9 @@ function registerBoardHandlers(io, socket) {
     io.to(boardRoom(boardId)).emit("presence:update", presence);
   });
 
-  socket.on("card:create", ({ boardId, columnId, title }, ack) => {
+  socket.on("card:create", async ({ boardId, columnId, title }, ack) => {
     try {
-      const card = boardStore.createCard(boardId, columnId, title);
+      const card = await boardStore.createCard(boardId, columnId, title);
       io.to(boardRoom(boardId)).emit("card:created", { columnId, card });
       if (typeof ack === "function") ack({ ok: true, card });
     } catch (err) {
@@ -38,9 +42,9 @@ function registerBoardHandlers(io, socket) {
 
   socket.on(
     "card:move",
-    ({ boardId, cardId, fromColumnId, toColumnId, toIndex }, ack) => {
+    async ({ boardId, cardId, fromColumnId, toColumnId, toIndex }, ack) => {
       try {
-        boardStore.moveCard(boardId, cardId, fromColumnId, toColumnId, toIndex);
+        await boardStore.moveCard(boardId, cardId, fromColumnId, toColumnId, toIndex);
         // Broadcast to everyone else — sender already applied it optimistically
         socket.to(boardRoom(boardId)).emit("card:moved", {
           cardId,
@@ -55,9 +59,9 @@ function registerBoardHandlers(io, socket) {
     }
   );
 
-  socket.on("card:delete", ({ boardId, cardId }, ack) => {
+  socket.on("card:delete", async ({ boardId, cardId }, ack) => {
     try {
-      boardStore.deleteCard(boardId, cardId);
+      await boardStore.deleteCard(boardId, cardId);
       io.to(boardRoom(boardId)).emit("card:deleted", { cardId });
       if (typeof ack === "function") ack({ ok: true });
     } catch (err) {

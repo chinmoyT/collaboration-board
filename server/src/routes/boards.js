@@ -4,8 +4,8 @@ const boardStore = require("../store/boardStore");
 
 const router = Router();
 
-router.get("/:boardId", requireAuth, (req, res) => {
-  const board = boardStore.getBoard(req.params.boardId);
+router.get("/:boardId", requireAuth, async (req, res) => {
+  const board = await boardStore.getBoard(req.params.boardId);
   res.json(board);
 });
 

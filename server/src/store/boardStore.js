@@ -1,59 +1,129 @@
 const { randomUUID } = require("crypto");
+const prisma = require("../prismaClient");
 
-// In-memory board store. Swap for Postgres/Mongo in Phase 3 —
-// keep this module's function signatures the same so callers don't change.
-const boards = new Map();
+const columnInclude = {
+  columns: {
+    orderBy: { position: "asc" },
+    include: { cards: { orderBy: { position: "asc" } } },
+  },
+};
 
-function seedBoard(boardId) {
-  const board = {
-    id: boardId,
-    columns: [
-      { id: "todo", title: "To Do", cardIds: [] },
-      { id: "in-progress", title: "In Progress", cardIds: [] },
-      { id: "done", title: "Done", cardIds: [] },
-    ],
-    cards: {},
-  };
-  boards.set(boardId, board);
-  return board;
-}
-
-function getBoard(boardId) {
-  return boards.get(boardId) || seedBoard(boardId);
-}
-
-function createCard(boardId, columnId, title) {
-  const board = getBoard(boardId);
-  const card = { id: randomUUID(), title, createdAt: Date.now() };
-  board.cards[card.id] = card;
-
-  const column = board.columns.find((c) => c.id === columnId);
-  if (!column) throw new Error(`Unknown column: ${columnId}`);
-  column.cardIds.push(card.id);
-
-  return card;
-}
-
-function moveCard(boardId, cardId, fromColumnId, toColumnId, toIndex) {
-  const board = getBoard(boardId);
-  const fromColumn = board.columns.find((c) => c.id === fromColumnId);
-  const toColumn = board.columns.find((c) => c.id === toColumnId);
-  if (!fromColumn || !toColumn) throw new Error("Unknown column");
-
-  fromColumn.cardIds = fromColumn.cardIds.filter((id) => id !== cardId);
-  const insertAt = Math.max(0, Math.min(toIndex, toColumn.cardIds.length));
-  toColumn.cardIds.splice(insertAt, 0, cardId);
-
-  return board;
-}
-
-function deleteCard(boardId, cardId) {
-  const board = getBoard(boardId);
-  delete board.cards[cardId];
-  board.columns.forEach((col) => {
-    col.cardIds = col.cardIds.filter((id) => id !== cardId);
+// Reshapes Prisma's relational rows into the { id, columns, cards } shape
+// the socket layer and frontend already expect.
+function serializeBoard(board) {
+  const cards = {};
+  const columns = board.columns.map((column) => {
+    column.cards.forEach((card) => {
+      cards[card.id] = {
+        id: card.id,
+        title: card.title,
+        createdAt: card.createdAt.getTime(),
+      };
+    });
+    return {
+      id: column.id,
+      title: column.title,
+      cardIds: column.cards.map((card) => card.id),
+    };
   });
-  return board;
+
+  return { id: board.id, columns, cards };
+}
+
+// Two concurrent first-visits to the same board can both reach here at
+// once (e.g. React StrictMode double-invoking effects, or two users
+// opening a fresh board link at the same time). Prisma's upsert isn't
+// guaranteed atomic against that race, so on a unique-constraint hit we
+// just read back the row the other request already created.
+async function seedBoard(boardId) {
+  try {
+    return await prisma.board.upsert({
+      where: { id: boardId },
+      update: {},
+      create: {
+        id: boardId,
+        columns: {
+          create: [
+            { title: "To Do", position: 0 },
+            { title: "In Progress", position: 1 },
+            { title: "Done", position: 2 },
+          ],
+        },
+      },
+      include: columnInclude,
+    });
+  } catch (err) {
+    if (err.code === "P2002") {
+      return prisma.board.findUniqueOrThrow({
+        where: { id: boardId },
+        include: columnInclude,
+      });
+    }
+    throw err;
+  }
+}
+
+async function getBoard(boardId) {
+  const board =
+    (await prisma.board.findUnique({
+      where: { id: boardId },
+      include: columnInclude,
+    })) || (await seedBoard(boardId));
+
+  return serializeBoard(board);
+}
+
+async function createCard(boardId, columnId, title) {
+  const position = await prisma.card.count({ where: { columnId } });
+  const card = await prisma.card.create({
+    data: { id: randomUUID(), columnId, title, position },
+  });
+  return { id: card.id, title: card.title, createdAt: card.createdAt.getTime() };
+}
+
+// Re-numbers every card in the affected column(s) to match the dragged
+// order, so position stays a clean 0..n-1 sequence regardless of history.
+async function moveCard(boardId, cardId, fromColumnId, toColumnId, toIndex) {
+  await prisma.$transaction(async (tx) => {
+    const fromCards = await tx.card.findMany({
+      where: { columnId: fromColumnId },
+      orderBy: { position: "asc" },
+    });
+
+    const fromIds = fromCards.map((c) => c.id).filter((id) => id !== cardId);
+
+    let toIds;
+    if (fromColumnId === toColumnId) {
+      toIds = fromIds;
+    } else {
+      const toCards = await tx.card.findMany({
+        where: { columnId: toColumnId },
+        orderBy: { position: "asc" },
+      });
+      toIds = toCards.map((c) => c.id);
+    }
+
+    const insertAt = Math.max(0, Math.min(toIndex, toIds.length));
+    toIds.splice(insertAt, 0, cardId);
+
+    const updates = [];
+    if (fromColumnId !== toColumnId) {
+      fromIds.forEach((id, index) =>
+        updates.push(tx.card.update({ where: { id }, data: { position: index } }))
+      );
+    }
+    toIds.forEach((id, index) => {
+      const data = { position: index };
+      if (id === cardId) data.columnId = toColumnId;
+      updates.push(tx.card.update({ where: { id }, data }));
+    });
+
+    await Promise.all(updates);
+  });
+}
+
+async function deleteCard(boardId, cardId) {
+  await prisma.card.delete({ where: { id: cardId } });
 }
 
 module.exports = {
