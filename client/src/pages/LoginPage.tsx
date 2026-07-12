@@ -4,7 +4,8 @@ import { login } from "../services/api";
 import { useAuthStore } from "../store/authStore";
 
 export function LoginPage() {
-  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -12,13 +13,13 @@ export function LoginPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!email.trim() || !password) return;
     setLoading(true);
     setError(null);
     try {
-      const { token, user } = await login(name.trim());
+      const { token, user } = await login(email.trim(), password);
       setAuth(token, user);
-      navigate("/organizations");
+      navigate("/boards");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -35,15 +36,21 @@ export function LoginPage() {
         <h1 className="mb-1 text-xl font-semibold text-slate-800">
           Collab Board
         </h1>
-        <p className="mb-6 text-sm text-slate-500">
-          Enter a display name to continue
-        </p>
+        <p className="mb-6 text-sm text-slate-500">Sign in to continue</p>
 
         <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
           autoFocus
+          className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
           className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
         />
 
@@ -54,7 +61,7 @@ export function LoginPage() {
           disabled={loading}
           className="w-full rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
-          {loading ? "Signing in..." : "Continue"}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
     </div>

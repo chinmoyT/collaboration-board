@@ -5,9 +5,22 @@ function boardRoom(boardId) {
   return `board:${boardId}`;
 }
 
+// Admins can act on any board; end users only on boards they're assigned
+// to. Checked from socket.user (server-verified at handshake), never from
+// client-supplied data, so a client can't just claim access to a board.
+async function isAuthorized(socket, boardId) {
+  if (socket.user.role === "ADMIN") return true;
+  return boardStore.isBoardMember(socket.user.id, boardId);
+}
+
 function registerBoardHandlers(io, socket) {
   socket.on("board:join", async (boardId, ack) => {
     try {
+      if (!(await isAuthorized(socket, boardId))) {
+        if (typeof ack === "function") ack({ error: "Not assigned to this board" });
+        return;
+      }
+
       const board = await boardStore.getBoard(boardId);
       if (!board) {
         if (typeof ack === "function") ack({ error: "Board not found" });
@@ -37,6 +50,10 @@ function registerBoardHandlers(io, socket) {
 
   socket.on("card:create", async ({ boardId, columnId, title }, ack) => {
     try {
+      if (!(await isAuthorized(socket, boardId))) {
+        if (typeof ack === "function") ack({ ok: false, error: "Not assigned to this board" });
+        return;
+      }
       const card = await boardStore.createCard(boardId, columnId, title);
       io.to(boardRoom(boardId)).emit("card:created", { columnId, card });
       if (typeof ack === "function") ack({ ok: true, card });
@@ -49,6 +66,10 @@ function registerBoardHandlers(io, socket) {
     "card:move",
     async ({ boardId, cardId, fromColumnId, toColumnId, toIndex }, ack) => {
       try {
+        if (!(await isAuthorized(socket, boardId))) {
+          if (typeof ack === "function") ack({ ok: false, error: "Not assigned to this board" });
+          return;
+        }
         await boardStore.moveCard(boardId, cardId, fromColumnId, toColumnId, toIndex);
         // Broadcast to everyone else — sender already applied it optimistically
         socket.to(boardRoom(boardId)).emit("card:moved", {
@@ -66,6 +87,10 @@ function registerBoardHandlers(io, socket) {
 
   socket.on("card:delete", async ({ boardId, cardId }, ack) => {
     try {
+      if (!(await isAuthorized(socket, boardId))) {
+        if (typeof ack === "function") ack({ ok: false, error: "Not assigned to this board" });
+        return;
+      }
       await boardStore.deleteCard(boardId, cardId);
       io.to(boardRoom(boardId)).emit("card:deleted", { cardId });
       if (typeof ack === "function") ack({ ok: true });

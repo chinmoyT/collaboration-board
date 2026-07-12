@@ -8,18 +8,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
+enum Role {
+  ADMIN
+  END_USER
 }
 
-model Organization {
+model User {
   id        String   @id @default(uuid())
-  name      String   @unique
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(END_USER)
   createdAt DateTime @default(now())
 
-  boards Board[]
+  memberships BoardMember[]
 }
 
 model Board {
@@ -27,12 +29,22 @@ model Board {
   name      String
   createdAt DateTime @default(now())
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
   columns Column[]
+  members BoardMember[]
+}
 
-  @@index([organizationId])
+model BoardMember {
+  id String @id @default(uuid())
+
+  userId  String
+  boardId String
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, boardId])
+  @@index([boardId])
+  @@index([userId])
 }
 
 model Column {

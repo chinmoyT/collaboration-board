@@ -37,4 +37,12 @@ function socketAuth(socket, next) {
   }
 }
 
-module.exports = { signToken, verifyToken, requireAuth, socketAuth };
+// Must run after requireAuth so req.user is already set
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== "ADMIN") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+}
+
+module.exports = { signToken, verifyToken, requireAuth, requireAdmin, socketAuth };
