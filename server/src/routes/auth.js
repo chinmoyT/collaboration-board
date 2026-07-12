@@ -1,33 +1,41 @@
 const { Router } = require("express");
+const bcrypt = require("bcryptjs");
 const { signToken } = require("../middleware/auth");
 const { asyncHandler } = require("../middleware/asyncHandler");
 const prisma = require("../prismaClient");
 
 const router = Router();
 
-// Logging in with a name that already exists reuses that user's id, so
-// organization/board membership stays stable across sessions. No password —
-// same lightweight feel as before, just persistent instead of per-login.
-router.post("/login", asyncHandler(async (req, res) => {
-  const { name } = req.body;
-  if (!name || !name.trim()) {
-    return res.status(400).json({ error: "name is required" });
-  }
-  const trimmedName = name.trim();
+function toPublicUser(user) {
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
+}
 
-  let user;
-  try {
-    user = await prisma.user.create({ data: { name: trimmedName } });
-  } catch (err) {
-    if (err.code === "P2002") {
-      user = await prisma.user.findUniqueOrThrow({ where: { name: trimmedName } });
-    } else {
-      throw err;
+// No self-signup — accounts are provisioned by the Admin (or, for the one
+// Admin account itself, via the create-admin script). This just verifies
+// credentials against an existing row.
+router.post(
+  "/login",
+  asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password are required" });
     }
-  }
 
-  const token = signToken({ id: user.id, name: user.name });
-  res.json({ token, user: { id: user.id, name: user.name } });
-}));
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+    });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const token = signToken(toPublicUser(user));
+    res.json({ token, user: toPublicUser(user) });
+  })
+);
 
 module.exports = router;

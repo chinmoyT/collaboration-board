@@ -1,6 +1,10 @@
+export type Role = "ADMIN" | "END_USER";
+
 export interface User {
   id: string;
+  email: string;
   name: string;
+  role: Role;
 }
 
 export interface Card {
@@ -27,15 +31,17 @@ export interface PresenceUser {
   name: string;
 }
 
-export interface Organization {
+export interface BoardSummary {
   id: string;
   name: string;
   createdAt: string;
 }
 
-export interface BoardSummary {
+export interface ManagedUser {
   id: string;
+  email: string;
   name: string;
-  organizationId: string;
+  role: Role;
   createdAt: string;
+  boardIds: string[];
 }

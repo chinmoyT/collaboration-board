@@ -14,7 +14,7 @@ function findColumn(columns: Column[], cardOrColumnId: string): Column | undefin
 }
 
 export function BoardPage() {
-  const { orgId, boardId } = useParams<{ orgId: string; boardId: string }>();
+  const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const board = useBoardStore((s) => s.board);
@@ -49,7 +49,7 @@ export function BoardPage() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-slate-500">
         <p>{error}</p>
         <button
-          onClick={() => navigate(`/organizations/${orgId}`)}
+          onClick={() => navigate("/boards")}
           className="text-slate-400 underline hover:text-slate-700"
         >
           Back to boards
@@ -71,7 +71,7 @@ export function BoardPage() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(`/organizations/${orgId}`)}
+            onClick={() => navigate("/boards")}
             className="text-slate-400 hover:text-slate-700"
             aria-label="Back to boards"
           >

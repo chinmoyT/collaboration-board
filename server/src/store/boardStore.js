@@ -29,6 +29,23 @@ function serializeBoard(board) {
   return { id: board.id, name: board.name, columns, cards };
 }
 
+// Admins see every board; end users see only boards they've been assigned to.
+async function listBoardsForUser(user) {
+  const where = user.role === "ADMIN" ? {} : { members: { some: { userId: user.id } } };
+  return prisma.board.findMany({
+    where,
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, createdAt: true },
+  });
+}
+
+async function isBoardMember(userId, boardId) {
+  const membership = await prisma.boardMember.findUnique({
+    where: { userId_boardId: { userId, boardId } },
+  });
+  return Boolean(membership);
+}
+
 async function getBoard(boardId) {
   const board = await prisma.board.findUnique({
     where: { id: boardId },
@@ -37,11 +54,10 @@ async function getBoard(boardId) {
   return board ? serializeBoard(board) : null;
 }
 
-async function createBoard(organizationId, name) {
+async function createBoard(name) {
   const board = await prisma.board.create({
     data: {
       name,
-      organizationId,
       columns: {
         create: [
           { title: "To Do", position: 0 },
@@ -53,6 +69,10 @@ async function createBoard(organizationId, name) {
     include: columnInclude,
   });
   return serializeBoard(board);
+}
+
+async function deleteBoard(boardId) {
+  await prisma.board.delete({ where: { id: boardId } });
 }
 
 async function createCard(boardId, columnId, title) {
@@ -109,8 +129,11 @@ async function deleteCard(boardId, cardId) {
 }
 
 module.exports = {
+  listBoardsForUser,
+  isBoardMember,
   getBoard,
   createBoard,
+  deleteBoard,
   createCard,
   moveCard,
   deleteCard,

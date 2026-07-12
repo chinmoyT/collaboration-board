@@ -1,6 +1,6 @@
 # Collab Board
 
-A real-time collaborative Kanban board — organized as Organizations → Boards → Columns → Cards. Drag-and-drop cards across columns and see changes sync instantly across every connected browser, with live presence avatars showing who's currently on the board.
+A real-time collaborative Kanban board with role-based access — Admins create boards and provision End Users, End Users only see boards they've been assigned to. Drag-and-drop cards across columns and see changes sync instantly across every connected browser, with live presence avatars showing who's currently on the board.
 
 ## Tech stack
 
@@ -15,7 +15,7 @@ A real-time collaborative Kanban board — organized as Organizations → Boards
 **Backend** (`server/`)
 - Node.js + Express
 - Socket.io
-- JWT auth
+- JWT auth (email + password, bcrypt-hashed)
 - PostgreSQL + Prisma ORM
 
 **Infra**
@@ -23,20 +23,24 @@ A real-time collaborative Kanban board — organized as Organizations → Boards
 
 ## How it works
 
-**Identity**: logging in with a name creates a user the first time, and reuses that same user on every later login with the same name — no password, but identity is persistent rather than per-session.
+**Roles**: there are exactly two — **Admin** (singular; there's no self-signup and Admins can't create other Admins) and **End User**. Admin creates boards, creates End User accounts with a temporary password, and assigns/reassigns End Users to boards on a dedicated **Manage Users** page. An End User's board list only shows boards they've been assigned to; an Admin's shows every board.
 
-**Navigation**: after login, users see a public directory of all **Organizations** ([OrganizationsPage](client/src/pages/OrganizationsPage.tsx)) — any logged-in user can create one or open any existing one. Opening an organization lists its **Boards** ([OrgBoardsPage](client/src/pages/OrgBoardsPage.tsx)), which can likewise be created or opened. Only inside a specific board does real-time collaboration kick in — two users only see each other and each other's changes if they're on the exact same board.
+**Bootstrapping the one Admin account**: since there's no signup flow, the Admin is created directly with a script — see [Creating the Admin account](#creating-the-admin-account) below.
 
 Two communication channels between client and server:
 
-- **REST (HTTP)** — login, and everything about organizations/boards as static lists: `GET/POST /api/organizations`, `GET/POST /api/organizations/:orgId/boards`.
+- **REST (HTTP)** — login, and everything about boards/users as static lists: `GET/POST /api/boards`, `DELETE /api/boards/:id`, `GET/POST /api/users`, `DELETE /api/users/:id`, `POST/DELETE /api/users/:id/boards/:boardId` (assignment).
 - **WebSocket (Socket.io)** — everything happening *inside* a specific board: fetching its live state, creating/moving/deleting cards, and presence. The client connects with the JWT in the handshake, joins a room per board (`board:<id>`), and after that all updates flow as socket events (`card:create`, `card:move`, `card:delete`, `presence:update`) broadcast to everyone in that room.
 
 Card moves are applied **optimistically** on the client (instant feedback) before being sent to the server, which then rebroadcasts to every other connected client on that board.
 
+### Authorization
+
+Every board-scoped action — REST fetch, `board:join`, `card:create`, `card:move`, `card:delete` — checks `req.user`/`socket.user` (decoded server-side from the JWT, never trusted from client input) against the `BoardMember` table before doing anything. Admins bypass the membership check; End Users get a 403 / socket error if they're not assigned. This is enforced independently on both the REST layer and the socket layer, since a client could otherwise emit socket events directly without ever going through a REST call.
+
 ### Data storage
 
-Users, organizations, boards, columns, and cards are all persisted in **PostgreSQL** via **Prisma** (schema in [server/prisma/schema.prisma](server/prisma/schema.prisma)). Card ordering within a column is tracked with a `position` column rather than array order, which is re-numbered on every move inside a transaction.
+Users, boards, columns, cards, and board memberships are all persisted in **PostgreSQL** via **Prisma** (schema in [server/prisma/schema.prisma](server/prisma/schema.prisma)). `BoardMember` is a many-to-many join table between `User` and `Board`. Card ordering within a column is tracked with a `position` column rather than array order, which is re-numbered on every move inside a transaction.
 
 Presence (who's currently viewing a board) stays in an in-memory map ([server/src/store/presenceStore.js](server/src/store/presenceStore.js)) — it's ephemeral by nature, tied to live socket connections, so it doesn't need to be persisted.
 
@@ -46,21 +50,22 @@ Presence (who's currently viewing a board) stays in an in-memory map ([server/sr
 node-js/
 ├── docker-compose.yml
 ├── server/
-│   ├── prisma/schema.prisma    # User, Organization, Board, Column, Card models
+│   ├── prisma/schema.prisma    # User (role), Board, Column, Card, BoardMember models
+│   ├── scripts/create-admin.js # bootstraps the one Admin account
 │   └── src/
 │       ├── index.js            # Express + HTTP server + Socket.io bootstrap + error middleware
 │       ├── prismaClient.js     # Prisma client singleton
-│       ├── middleware/         # auth.js (JWT), asyncHandler.js (rejects → next(err))
-│       ├── routes/             # /api/auth, /api/organizations, /api/boards
-│       ├── socket/             # room join/leave, card events
+│       ├── middleware/         # auth.js (JWT, requireAdmin), asyncHandler.js (rejects → next(err))
+│       ├── routes/             # /api/auth, /api/boards, /api/users
+│       ├── socket/             # room join/leave, card events, per-action authorization
 │       └── store/               # boardStore (Postgres) + presenceStore (in-memory)
 └── client/
     └── src/
         ├── services/           # REST client (api.ts), socket client (socket.ts)
         ├── store/               # Zustand: auth, board state
         ├── hooks/useBoardSocket.ts  # wires socket events to the store
-        ├── components/          # ColumnView, CardItem, PresenceBar
-        └── pages/                # Login, Organizations, OrgBoards, Board
+        ├── components/          # ColumnView, CardItem, PresenceBar, ProtectedRoute, AdminRoute
+        └── pages/                # Login, Boards, Board, Users (admin-only)
 ```
 
 ## Running locally
@@ -96,3 +101,14 @@ cp .env.example .env
 npm install
 npm run dev
 ```
+
+## Creating the Admin account
+
+There's no signup form and an Admin can't create another Admin, so the one Admin account is created directly:
+
+```bash
+cd server
+node scripts/create-admin.js admin@example.com "some-password" "Admin Name"
+```
+
+From there, log in as that Admin to create End User accounts and assign them to boards.
