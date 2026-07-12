@@ -55,7 +55,14 @@ router.post(
           role: "END_USER",
         },
       });
-      res.status(201).json({ id: user.id, email: user.email, name: user.name, role: user.role });
+      res.status(201).json({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        createdAt: user.createdAt,
+        boardIds: [],
+      });
     } catch (err) {
       if (err.code === "P2002") {
         return res.status(409).json({ error: "A user with that email already exists" });
