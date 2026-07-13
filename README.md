@@ -112,3 +112,37 @@ node scripts/create-admin.js admin@example.com "some-password" "Admin Name"
 ```
 
 From there, log in as that Admin to create End User accounts and assign them to boards.
+
+## Deploying
+
+**The client and server deploy to different kinds of platforms** — the server needs a persistent process for Socket.io (WebSockets don't work on serverless), so it can't live on Vercel alongside the client.
+
+| Piece | Where | Why |
+|---|---|---|
+| `client/` | Vercel | Static Vite build, ships as `dist/` |
+| `server/` | Render / Railway / Fly.io | Needs a long-running Node process for WebSockets |
+| Postgres | Render/Railway managed Postgres, or Neon/Supabase | Needs to be reachable from wherever the server runs |
+
+Both `CLIENT_URL` (server-side, for CORS) and `VITE_API_URL` (client-side, for API/socket calls) are already read from environment variables — no code changes needed, just setting them correctly per environment.
+
+**1. Server** (example: Render)
+- New Web Service → point at this repo, root directory `server`
+- Build command: `npm install` (runs `prisma generate` via `postinstall`)
+- Start command: `npm start`
+- Add a managed Postgres instance, set `DATABASE_URL` to its connection string
+- Set `JWT_SECRET` (long random string) and `PORT` (most platforms inject this automatically — `server/src/index.js` already reads `process.env.PORT`)
+- After the first deploy, open a shell on the service and run:
+  ```bash
+  npx prisma migrate deploy
+  node scripts/create-admin.js admin@example.com "some-password" "Admin Name"
+  ```
+- Note the server's public URL
+
+**2. Client** (Vercel)
+- New Project → import this repo, set **Root Directory** to `client`
+- Framework preset: Vite (auto-detected)
+- Environment variable: `VITE_API_URL` = the server URL from step 1
+- Deploy — `client/vercel.json` handles the SPA rewrite so client-side routes (e.g. `/boards/:id`) don't 404 on refresh
+
+**3. Close the loop**
+- Back on the server platform, set `CLIENT_URL` to the resulting Vercel URL and redeploy — CORS is origin-locked, so the server won't accept requests from the client until this matches exactly.
