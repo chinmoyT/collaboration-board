@@ -2,6 +2,12 @@
 
 A real-time collaborative Kanban board with role-based access — Admins create boards and provision End Users, End Users only see boards they've been assigned to. Drag-and-drop cards across columns and see changes sync instantly across every connected browser, with live presence avatars showing who's currently on the board.
 
+## Screenshots
+
+| Login | Boards | Board |
+|---|---|---|
+| ![Login](docs/screenshots/login.jpeg) | ![Boards](docs/screenshots/boards.jpeg) | ![Board](docs/screenshots/board.jpeg) |
+
 ## Tech stack
 
 **Frontend** (`client/`)
