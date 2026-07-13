@@ -29,6 +29,7 @@ services:
     volumes:
       - ./server/src:/app/src
       - ./server/prisma:/app/prisma
+      - ./server/scripts:/app/scripts
 
   client:
     build: ./client

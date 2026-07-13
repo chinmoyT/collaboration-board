@@ -171,7 +171,7 @@ export function UsersPage() {
 
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {boards.map((board) => {
-                      const assigned = user.boardIds.includes(board.id);
+                      const assigned = user.boardIds?.includes(board.id);
                       return (
                         <button
                           key={board.id}

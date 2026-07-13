@@ -9,6 +9,7 @@ COPY prisma ./prisma
 RUN npm install
 
 COPY src ./src
+COPY scripts ./scripts
 
 EXPOSE 4000
 
