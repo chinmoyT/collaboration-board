@@ -1,29 +1,38 @@
+import { useState } from "react";
 import type { PresenceUser } from "../types";
-
-function colorFor(id: string): string {
-  const colors = [
-    "bg-rose-400", "bg-amber-400", "bg-emerald-400",
-    "bg-sky-400", "bg-violet-400", "bg-pink-400",
-  ];
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
+import { Avatar } from "./Avatar";
 
 export function PresenceBar({ users }: { users: PresenceUser[] }) {
+  const [hovered, setHovered] = useState(false);
   if (users.length === 0) return null;
 
   return (
-    <div className="flex items-center -space-x-2">
-      {users.map((u) => (
-        <div
-          key={u.id}
-          title={u.name}
-          className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs font-semibold text-white ${colorFor(u.id)}`}
-        >
-          {u.name.slice(0, 2).toUpperCase()}
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="flex items-center -space-x-2">
+        {users.map((u) => (
+          <Avatar key={u.id} id={u.id} name={u.name} ring showTitle={false} />
+        ))}
+      </div>
+
+      {hovered && (
+        <div className="absolute right-0 top-full z-20 mt-2 w-52 rounded-lg border border-slate-200 bg-white py-2 shadow-lift">
+          <p className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            {users.length} {users.length === 1 ? "person" : "people"} viewing
+          </p>
+          <ul className="max-h-48 overflow-y-auto">
+            {users.map((u) => (
+              <li key={u.id} className="flex items-center gap-2 px-3 py-1.5">
+                <Avatar id={u.id} name={u.name} size="sm" />
+                <span className="truncate text-sm text-slate-700">{u.name}</span>
+              </li>
+            ))}
+          </ul>
         </div>
-      ))}
+      )}
     </div>
   );
 }
