@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  Loader2,
+  Mail,
+  Trash2,
+  User,
+  UserPlus,
+} from "lucide-react";
+import {
   assignUserToBoard,
   createUser,
   deleteUser,
@@ -9,6 +19,8 @@ import {
   unassignUserFromBoard,
 } from "../services/api";
 import { useAuthStore } from "../store/authStore";
+import { Avatar } from "../components/Avatar";
+import { ProfileMenu } from "../components/ProfileMenu";
 import type { BoardSummary, ManagedUser } from "../types";
 
 export function UsersPage() {
@@ -92,84 +104,116 @@ export function UsersPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/boards")}
-            className="text-slate-400 hover:text-slate-700"
-            aria-label="Back to boards"
-          >
-            ←
-          </button>
-          <h1 className="text-lg font-semibold text-slate-800">Manage Users</h1>
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 px-6 py-4 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-3xl items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/boards")}
+              aria-label="Back to boards"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            >
+              <ArrowLeft size={17} />
+            </button>
+            <h1 className="text-lg font-semibold tracking-tight text-slate-900">Manage Users</h1>
+          </div>
+          <ProfileMenu />
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-6 py-12">
-        <h2 className="mb-1 text-base font-medium text-slate-800">Create end user</h2>
-        <p className="mb-4 text-sm text-slate-500">
-          Set a temporary password — the user can change it later.
-        </p>
+      <main className="mx-auto max-w-3xl px-6 py-10">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-soft">
+          <div className="mb-1 flex items-center gap-2">
+            <UserPlus size={17} className="text-indigo-600" />
+            <h2 className="text-base font-semibold text-slate-800">Create end user</h2>
+          </div>
+          <p className="mb-4 text-sm text-slate-500">
+            Set a temporary password — the user can change it later.
+          </p>
 
-        <form onSubmit={submit} className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-          />
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-          />
-          <input
-            type="text"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Temporary password"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={creating}
-            className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 sm:col-span-3"
-          >
-            Create user
-          </button>
-        </form>
+          <form onSubmit={submit} className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
+              />
+            </div>
+            <div className="relative">
+              <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Name"
+                className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
+              />
+            </div>
+            <input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Temporary password"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
+            />
+            <button
+              type="submit"
+              disabled={creating}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-soft transition-colors hover:bg-indigo-500 disabled:opacity-60 sm:col-span-3"
+            >
+              {creating ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
+              Create user
+            </button>
+          </form>
 
-        {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+          {error && (
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
 
-        <div className="mt-10">
-          <h2 className="mb-3 text-base font-medium text-slate-800">Users</h2>
+        <div className="mt-8">
+          <h2 className="mb-3 text-base font-semibold text-slate-800">
+            Users {!loading && <span className="text-slate-400">({users.length})</span>}
+          </h2>
+
           {loading ? (
-            <p className="text-sm text-slate-400">Loading users...</p>
+            <div className="flex items-center gap-2 py-10 text-sm text-slate-400">
+              <Loader2 size={16} className="animate-spin" />
+              Loading users...
+            </div>
           ) : users.length === 0 ? (
-            <p className="text-sm text-slate-400">No end users yet — create one above.</p>
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 py-10 text-center text-sm text-slate-400">
+              No end users yet — create one above.
+            </div>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-3">
               {users.map((user) => (
                 <li
                   key={user.id}
-                  className="rounded-md border border-slate-200 bg-white p-4"
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft"
                 >
                   <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">{user.name}</p>
-                      <p className="text-xs text-slate-500">{user.email}</p>
+                    <div className="flex items-center gap-3">
+                      <Avatar id={user.id} name={user.name} />
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{user.name}</p>
+                        <p className="text-xs text-slate-500">{user.email}</p>
+                      </div>
                     </div>
                     <button
                       onClick={() => removeUser(user.id)}
-                      className="text-xs text-slate-400 hover:text-red-500"
+                      title="Delete user"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
                     >
-                      Delete
+                      <Trash2 size={14} />
                     </button>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-1.5">
+                  <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
                     {boards.map((board) => {
                       const assigned = user.boardIds?.includes(board.id);
                       return (
@@ -178,10 +222,11 @@ export function UsersPage() {
                           onClick={() => toggleAssignment(user, board.id, assigned)}
                           className={
                             assigned
-                              ? "rounded-full bg-slate-800 px-2.5 py-1 text-xs text-white hover:bg-slate-700"
-                              : "rounded-full border border-slate-300 px-2.5 py-1 text-xs text-slate-500 hover:border-slate-400"
+                              ? "flex items-center gap-1 rounded-full bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-indigo-500"
+                              : "flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-500 transition-colors hover:border-indigo-300 hover:text-indigo-600"
                           }
                         >
+                          {assigned && <Check size={11} />}
                           {board.name}
                         </button>
                       );
